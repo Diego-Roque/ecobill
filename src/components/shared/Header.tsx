@@ -18,7 +18,7 @@ export default function Header({ streak, energy }: HeaderTopProps) {
                     </div>
 
                     <span className="font-semibold text-lg text-gray-800">
-            EcoBill
+            AquaSmart
           </span>
                 </div>
 

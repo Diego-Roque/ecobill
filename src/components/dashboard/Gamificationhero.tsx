@@ -31,11 +31,7 @@ export default function GamificationHero({
 
     return (
         <div
-            className=" w-full rounded-3xl p-5 flex flex-col gap-5"
-            style={{
-                background: 'linear-gradient(160deg, #0f2236 0%, #0d3d3a 100%)',
-            }}
-        >
+            className=" w-full rounded-3xl p-5 flex flex-col gap-5 bg-blue-700 ">
             {/* ── Row 1: Level + Streak ── */}
             <div className="flex items-center justify-between">
                 {/* Level block */}

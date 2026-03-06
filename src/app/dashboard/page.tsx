@@ -1,6 +1,7 @@
 import GamificationHero from "@/components/dashboard/Gamificationhero";
 import {divide} from "es-toolkit/compat";
 import BillForecast from "@/components/dashboard/BillForecast";
+import {Rankingchart} from "@/components/ranking/Rankingchart";
 
 export default function Dashboard() {
 
@@ -11,6 +12,9 @@ export default function Dashboard() {
             </div>
             <div className="mt-10">
                 <BillForecast/>
+            </div>
+            <div className="mt-10">
+                <Rankingchart place={"2"}/>
             </div>
         </div>
 
