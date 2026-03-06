@@ -14,8 +14,8 @@ export default function CircleProgress({ level, pct }: { level: number; pct: num
                 />
                 <defs>
                     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#7c3aed" />
-                        <stop offset="100%" stopColor="#2dd4bf" />
+                        <stop offset="0%" stopColor="#38bdf8" />
+                        <stop offset="100%" stopColor="#1e3a8a" />
                     </linearGradient>
                 </defs>
             </svg>

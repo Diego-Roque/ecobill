@@ -63,7 +63,7 @@ export default function RetosPage() {
                             className="h-2.5 rounded-full"
                             style={{
                                 width: `${pct * 100}%`,
-                                background: 'linear-gradient(to right, #7c3aed, #2dd4bf)',
+                                background: 'linear-gradient(to right, #38bdf8, #1e3a8a)',
                             }}
                         />
                     </div>
