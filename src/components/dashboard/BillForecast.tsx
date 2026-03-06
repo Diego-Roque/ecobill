@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
     ResponsiveContainer,
-    AreaChart,
     Area,
-    LineChart,
     Line,
     XAxis,
     YAxis,
@@ -13,10 +11,11 @@ import {
     Tooltip,
     ReferenceLine,
     ComposedChart,
-    Legend,
 } from 'recharts';
 import StatCard from "@/components/dashboard/StatCard";
 
+
+// TODO mamada de promedio
 // ── Data ────────────────────────────────────────────────────────────────────
 const generateData = () => {
     const days = 28;

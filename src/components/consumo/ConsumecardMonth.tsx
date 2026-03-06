@@ -1,5 +1,7 @@
 'use client';
 
+import {TrendingDown, TrendingUp} from "lucide-react";
+
 interface ConsumoCardProps {
     liters?: number;
     changePercent?: number;
@@ -32,9 +34,10 @@ export default function ConsumoCardMonth({
 
             {/* Change */}
             <div className="flex items-center justify-center gap-1 mb-5">
-                <span className={`text-sm font-semibold ${isDown ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {isDown ? '↘' : '↗'} {changePercent}%
-                </span>
+                <span className={`text-sm font-semibold flex items-center gap-1 ${isDown ? 'text-emerald-500' : 'text-rose-500'}`}>
+    {isDown ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                    {changePercent}%
+</span>
                 <span className="text-sm text-slate-400">vs mes pasado</span>
             </div>
 

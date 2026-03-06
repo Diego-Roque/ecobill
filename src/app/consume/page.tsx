@@ -15,12 +15,14 @@ export default function Consume() {
             <div>
                 <ConsumoCardMonth/>
             </div>
-            <div>
-                <MiHogarCard/>
-            </div>
+
             <div className={"pt-10"}>
                 <TabSelector active={activeTab} onChange={setActiveTab} />
                 <ConsumptionChart activeTab={activeTab} />
+            </div>
+
+            <div>
+                <MiHogarCard/>
             </div>
         </div>
     );
