@@ -1,8 +1,9 @@
 'use client';
 
-import {TrendingDown, TrendingUp} from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 
 interface ConsumoCardProps {
+    monthName?: string;
     liters?: number;
     changePercent?: number;
     proximityPercent?: number;
@@ -10,24 +11,25 @@ interface ConsumoCardProps {
 }
 
 export default function ConsumoCardMonth({
-                                        liters = 7886,
-                                        changePercent = -6,
-                                        proximityPercent = 53,
-                                        litersRemaining = 7114,
-                                    }: ConsumoCardProps) {
+                                             monthName = 'Marzo',
+                                             liters = 7886,
+                                             changePercent = -6,
+                                             proximityPercent = 53,
+                                             litersRemaining = 7114,
+                                         }: ConsumoCardProps) {
     const isDown = changePercent < 0;
 
     return (
         <div className="bg-white rounded-2xl p-6 shadow-sm w-full">
             {/* Title */}
             <p className="text-center text-xs font-bold tracking-widest text-slate-400 uppercase mb-3">
-                Consumo del mes de Marzo
+                Consumo del mes de {monthName}
             </p>
 
             {/* Main number */}
             <div className="flex items-baseline justify-center gap-2 mb-1">
                 <span className="text-5xl font-black text-slate-900">
-                    {liters.toLocaleString()}
+                    {liters.toLocaleString('es-MX')}
                 </span>
                 <span className="text-xl font-medium text-slate-400">litros</span>
             </div>
@@ -35,9 +37,9 @@ export default function ConsumoCardMonth({
             {/* Change */}
             <div className="flex items-center justify-center gap-1 mb-5">
                 <span className={`text-sm font-semibold flex items-center gap-1 ${isDown ? 'text-emerald-500' : 'text-rose-500'}`}>
-    {isDown ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                    {isDown ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
                     {changePercent}%
-</span>
+                </span>
                 <span className="text-sm text-slate-400">vs mes pasado</span>
             </div>
 
@@ -49,7 +51,6 @@ export default function ConsumoCardMonth({
 
             {/* Gradient bar */}
             <div className="relative h-3 rounded-full overflow-hidden bg-slate-100 mb-2">
-                {/* Full gradient track */}
                 <div
                     className="absolute inset-y-0 left-0 rounded-full"
                     style={{
@@ -61,7 +62,7 @@ export default function ConsumoCardMonth({
 
             {/* Caption */}
             <p className="text-center text-xs text-slate-400">
-                Quedan ~{litersRemaining.toLocaleString()}L antes de subir de tarifa
+                Quedan ~{litersRemaining.toLocaleString('es-MX')}L antes de subir de tarifa
             </p>
         </div>
     );

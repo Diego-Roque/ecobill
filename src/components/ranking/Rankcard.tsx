@@ -77,7 +77,7 @@ export default function Rankcard({
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
           <span className="text-amber-500 font-medium">
-            ⚡{energy.toLocaleString()}
+            ⚡{energy.toLocaleString('es-MX')}
           </span>
                     <span>{(water / 1000).toFixed(1)}k L</span>
                 </p>
