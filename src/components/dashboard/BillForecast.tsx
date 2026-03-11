@@ -15,14 +15,41 @@ import {
     BILL_PROJECTED_END,
     BILL_SAVING,
     BILL_PERFORMANCE,
+    CURRENT_TIER,
+    NEXT_TIER,
 } from "@/data/Consumptiondata";
 
-// ── Chart data (estático, construido fuera del componente) ────────────────────
+// ── Escala dinámica del eje Y ─────────────────────────────────────────────────
+const REFERENCE_LIMIT = CURRENT_TIER.maxM3 === Infinity
+    ? BILL_LIMIT_T2
+    : Math.round(CURRENT_TIER.maxM3 * CURRENT_TIER.pricePerM3);
+const REFERENCE_LABEL = CURRENT_TIER.maxM3 === Infinity
+    ? 'Ref. T2'
+    : `Límite ${CURRENT_TIER.id}`;
+
+const _allValues = [
+    ...CURRENT_BILL_RAW.filter((v): v is number => v !== null),
+    ...BILL_PROJECTION,
+    REFERENCE_LIMIT,
+];
+const _maxValue  = Math.max(..._allValues);
+const Y_MAX      = Math.ceil(_maxValue * 1.25 / 50) * 50; // redondear al 50 superior con 25% margen
+
+// Generar ticks legibles según el rango
+function buildTicks(max: number): number[] {
+    const step = max <= 200 ? 50 : max <= 500 ? 100 : max <= 1000 ? 200 : 500;
+    const ticks = [0];
+    let v = step;
+    while (v <= max) { ticks.push(v); v += step; }
+    return ticks;
+}
+const Y_TICKS = buildTicks(Y_MAX);
+
+// ── Chart data ────────────────────────────────────────────────────────────────
 const CHART_DATA = Array.from({ length: BILL_DAYS_IN_MONTH }, (_, i) => ({
     day:        `D${i + 1}`,
     real:       CURRENT_BILL_RAW[i] ?? null,
     projection: BILL_PROJECTION[i],
-    limit:      BILL_LIMIT_T2,
 }));
 
 // ── Custom Tooltip ────────────────────────────────────────────────────────────
@@ -54,13 +81,12 @@ export default function BillForecast() {
         return () => { clearTimeout(t1); clearTimeout(t2); };
     }, []);
 
-    const realColor      = BILL_PERFORMANCE === 'good' ? '#22c55e' : BILL_PERFORMANCE === 'bad' ? '#ef4444' : '#2dd4bf';
-    const gradientId     = BILL_PERFORMANCE === 'good' ? 'gradGreen' : BILL_PERFORMANCE === 'bad' ? 'gradRed' : 'gradTeal';
+    const realColor  = BILL_PERFORMANCE === 'good' ? '#22c55e' : BILL_PERFORMANCE === 'bad' ? '#ef4444' : '#2dd4bf';
+    const gradientId = BILL_PERFORMANCE === 'good' ? 'gradGreen' : BILL_PERFORMANCE === 'bad' ? 'gradRed' : 'gradTeal';
 
     const performanceLabel =
         BILL_PERFORMANCE === 'good' ? `Ahorro est. -$${BILL_SAVING.toLocaleString('es-MX')}` :
-            BILL_PERFORMANCE === 'bad'  ? 'Por encima del promedio' :
-                'Sin datos';
+            BILL_PERFORMANCE === 'bad'  ? 'Por encima del promedio' : 'Sin datos';
     const performanceColor =
         BILL_PERFORMANCE === 'good' ? '#22c55e' :
             BILL_PERFORMANCE === 'bad'  ? '#ef4444' : '#94a3b8';
@@ -69,8 +95,8 @@ export default function BillForecast() {
         <div
             className="bg-white rounded-3xl p-5 shadow-sm w-full mx-auto"
             style={{
-                opacity:   visible ? 1 : 0,
-                transform: visible ? 'translateY(0)' : 'translateY(20px)',
+                opacity:    visible ? 1 : 0,
+                transform:  visible ? 'translateY(0)' : 'translateY(20px)',
                 transition: 'opacity 0.6s ease, transform 0.6s ease',
             }}
         >
@@ -91,7 +117,12 @@ export default function BillForecast() {
                     visible={visible}
                     delay={100}
                 />
-                <StatCard label="Tarifa actual" value="T2" visible={visible} delay={200} />
+                <StatCard
+                    label="Tarifa actual"
+                    value={CURRENT_TIER.id}
+                    visible={visible}
+                    delay={200}
+                />
                 <StatCard
                     label={BILL_PERFORMANCE === 'good' ? 'Ahorro est.' : 'Exceso est.'}
                     value={
@@ -106,11 +137,21 @@ export default function BillForecast() {
             </div>
 
             {/* Performance badge */}
-            <div className="flex items-center gap-1.5 mb-3">
-                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: performanceColor }} />
-                <span className="text-xs font-medium" style={{ color: performanceColor }}>
-                    {performanceLabel}
-                </span>
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: performanceColor }} />
+                    <span className="text-xs font-medium" style={{ color: performanceColor }}>
+                        {performanceLabel}
+                    </span>
+                </div>
+                {NEXT_TIER && (
+                    <span className="text-xs text-slate-400">
+                        Siguiente tier:{' '}
+                        <span className="font-semibold text-slate-600">
+                            {NEXT_TIER.id} · ${NEXT_TIER.pricePerM3}/m³
+                        </span>
+                    </span>
+                )}
             </div>
 
             {/* Chart */}
@@ -122,7 +163,7 @@ export default function BillForecast() {
                 }}
             >
                 <ResponsiveContainer width="100%" height={200}>
-                    <ComposedChart data={CHART_DATA} margin={{ top: 10, right: 24, left: -16, bottom: 0 }}>
+                    <ComposedChart data={CHART_DATA} margin={{ top: 8, right: 48, left: -8, bottom: 0 }}>
                         <defs>
                             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%"  stopColor={realColor} stopOpacity={0.3} />
@@ -131,33 +172,63 @@ export default function BillForecast() {
                         </defs>
 
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                        <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} interval={3} />
+
+                        <XAxis
+                            dataKey="day"
+                            tick={{ fontSize: 10, fill: '#94a3b8' }}
+                            tickLine={false}
+                            axisLine={false}
+                            interval={3}
+                        />
                         <YAxis
                             tick={{ fontSize: 10, fill: '#94a3b8' }}
-                            tickLine={false} axisLine={false}
-                            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-                            domain={[0, 10000]}
-                            ticks={[0, 3000, 5000, 8000, 10000]}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(v) => `$${v}`}
+                            domain={[0, Y_MAX]}
+                            ticks={Y_TICKS}
+                            width={36}
                         />
+
                         <Tooltip content={<CustomTooltip />} />
 
                         <ReferenceLine
-                            y={BILL_LIMIT_T2}
-                            stroke="#f59e0b" strokeDasharray="5 5" strokeWidth={1.5}
-                            label={{ value: 'Límite T2', position: 'right', fontSize: 10, fill: '#f59e0b' }}
+                            y={REFERENCE_LIMIT}
+                            stroke="#f59e0b"
+                            strokeDasharray="5 5"
+                            strokeWidth={1.5}
+                            label={{
+                                value: REFERENCE_LABEL,
+                                position: 'right',
+                                fontSize: 10,
+                                fill: '#f59e0b',
+                                offset: 4,
+                            }}
                         />
+
                         <Line
-                            type="monotone" dataKey="projection" name="Promedio histórico"
-                            stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="5 4"
-                            dot={false} activeDot={{ r: 3, fill: '#94a3b8' }}
-                            animationDuration={1600} animationEasing="ease-out"
+                            type="monotone"
+                            dataKey="projection"
+                            name="Promedio histórico"
+                            stroke="#94a3b8"
+                            strokeWidth={1.5}
+                            strokeDasharray="5 4"
+                            dot={false}
+                            activeDot={{ r: 3, fill: '#94a3b8' }}
+                            animationDuration={1600}
+                            animationEasing="ease-out"
                         />
                         <Area
-                            type="monotone" dataKey="real" name="Consumo real"
-                            stroke={realColor} strokeWidth={2.5}
+                            type="monotone"
+                            dataKey="real"
+                            name="Consumo real"
+                            stroke={realColor}
+                            strokeWidth={2.5}
                             fill={`url(#${gradientId})`}
-                            dot={false} activeDot={{ r: 4, fill: realColor }}
-                            animationDuration={1200} animationEasing="ease-out"
+                            dot={false}
+                            activeDot={{ r: 4, fill: realColor }}
+                            animationDuration={1200}
+                            animationEasing="ease-out"
                             connectNulls={false}
                         />
                     </ComposedChart>

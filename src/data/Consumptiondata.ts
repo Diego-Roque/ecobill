@@ -1,6 +1,5 @@
 // ── data/Consumptiondata.ts ───────────────────────────────────────────────────
-// Única fuente de verdad para todos los datos de consumo.
-// Edita RAW para cambiar días, semanas y meses se derivan automáticamente.
+// Única fuente de verdad. Edita solo RAW → todo lo demás se deriva.
 
 export type TabOption = 'Diario' | 'Semanal' | 'Mensual';
 
@@ -9,49 +8,90 @@ export interface ChartEntry {
     value: number;
 }
 
+// ── Tiers ─────────────────────────────────────────────────────────────────────
+export interface Tier {
+    id:         'T1' | 'T2' | 'T3' | 'T4';
+    label:      string;
+    desc:       string;
+    minM3:      number;
+    maxM3:      number;       // Infinity para T4
+    pricePerM3: number;
+}
+
+export const TIERS: Tier[] = [
+    { id: 'T1', label: 'T1 – Básico',  desc: 'Consumo bajo',     minM3: 0,  maxM3: 15,       pricePerM3: 10 },
+    { id: 'T2', label: 'T2 – Normal',  desc: 'Consumo normal',   minM3: 16, maxM3: 30,       pricePerM3: 15 },
+    { id: 'T3', label: 'T3 – Alto',    desc: 'Consumo alto',     minM3: 31, maxM3: 60,       pricePerM3: 20 },
+    { id: 'T4', label: 'T4 – Muy alto',desc: 'Consumo muy alto', minM3: 61, maxM3: Infinity, pricePerM3: 25 },
+];
+
+export function getTierForM3(m3: number): Tier {
+    return TIERS.find(t => m3 >= t.minM3 && m3 <= t.maxM3) ?? TIERS[TIERS.length - 1];
+}
+
+// Costo en pesos para un volumen acumulado en m³ (tarifa progresiva)
+function calcCostMXN(m3: number): number {
+    let remaining = m3;
+    let cost = 0;
+    for (const tier of TIERS) {
+        if (remaining <= 0) break;
+        const capacity = tier.maxM3 === Infinity ? remaining : tier.maxM3 - tier.minM3 + 1;
+        const consumed = Math.min(remaining, capacity);
+        cost += consumed * tier.pricePerM3;
+        remaining -= consumed;
+    }
+    return Math.round(cost * 100) / 100;
+}
+
 // ── Labels de días ────────────────────────────────────────────────────────────
 const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
-// ── Data diaria por mes ───────────────────────────────────────────────────────
+// ── RAW: única fuente de verdad (litros por día) ──────────────────────────────
+// El último mes es el mes actual. Los días sin datos no se agregan.
 const RAW: { month: string; days: number[] }[] = [
     {
         month: 'Ene',
+        // Familia 4 personas, ~720 L/día promedio, fines de semana +20%
+        // Total: 22,629 L = 22.63 m³ → T2
         days: [
-            310, 420, 390, 480, 510, 620, 350,   // S1
-            290, 400, 370, 500, 470, 590, 310,   // S2
-            330, 440, 410, 520, 490, 640, 360,   // S3
-            300, 410, 380, 495, 460, 605, 325,   // S4
-            320, 430, 400,                        // S5 parcial
+            732, 620, 666, 656, 750, 886, 934,   // S1
+            631, 692, 621, 655, 707, 744, 782,   // S2
+            734, 715, 656, 723, 763, 740, 915,   // S3
+            743, 677, 644, 790, 677, 759, 760,   // S4
+            770, 725, 762,                        // S5 parcial
         ],
     },
     {
         month: 'Feb',
+        // Total: 21,319 L = 21.32 m³ → T2
         days: [
-            340, 450, 420, 510, 500, 660, 370,   // S1
-            305, 415, 385, 510, 480, 600, 320,   // S2
-            355, 465, 430, 535, 505, 655, 375,   // S3
-            315, 425, 395, 505, 475, 615, 335,   // S4
+            770, 733, 815, 704, 736, 946, 899,   // S1
+            794, 741, 765, 642, 676, 825, 778,   // S2
+            677, 652, 685, 752, 701, 843, 807,   // S3
+            683, 808, 754, 747, 665, 924, 797,   // S4
         ],
     },
     {
         month: 'Mar',
+        // 15 días registrados. Total parcial: 11,157 L = 11.16 m³ → T1 (en camino a T2)
         days: [
-            320, 410, 380, 520, 460, 610, 340,   // S1
-            290, 430, 360, 500, 480, 590, 330,   // S2
-            315,                                  // S3 parcial (día 15)
+            675, 784, 722, 707, 730, 910, 895,   // S1
+            648, 612, 663, 655, 645, 931, 917,   // S2
+            663,                                  // S3 parcial (día 15)
         ],
     },
 ];
 
-// ── Tipos internos ────────────────────────────────────────────────────────────
+// ── Derivar semanas y totales ─────────────────────────────────────────────────
 interface MonthSummary {
-    label: string;
-    total: number;
-    weeks: ChartEntry[];
-    days: ChartEntry[];
+    label:   string;
+    total:   number;    // litros
+    totalM3: number;    // m³
+    weeks:   ChartEntry[];
+    days:    ChartEntry[];
+    rawDays: number[];  // litros crudos, para derivar BillForecast
 }
 
-// ── Derivar semanas y totales por mes ─────────────────────────────────────────
 export const MONTHS: MonthSummary[] = RAW.map((m) => {
     const days: ChartEntry[] = m.days.map((v, i) => ({
         label: DAY_LABELS[i % 7],
@@ -67,71 +107,136 @@ export const MONTHS: MonthSummary[] = RAW.map((m) => {
         weekNum++;
     }
 
-    return { label: m.month, total: m.days.reduce((a, b) => a + b, 0), weeks, days };
+    const total = m.days.reduce((a, b) => a + b, 0);
+    return { label: m.month, total, totalM3: total / 1000, weeks, days, rawDays: m.days };
 });
 
-// ── Mes actual (último en el array) ──────────────────────────────────────────
 const CURRENT = MONTHS[MONTHS.length - 1];
 const PREV    = MONTHS[MONTHS.length - 2];
 
-// ── Umbrales eficientes por tab ───────────────────────────────────────────────
+// ── Tier del mes actual ───────────────────────────────────────────────────────
+export const CURRENT_TIER    = getTierForM3(CURRENT.totalM3);
+export const NEXT_TIER       = TIERS[TIERS.indexOf(CURRENT_TIER) + 1] ?? null;
+export const M3_TO_NEXT_TIER = NEXT_TIER ? NEXT_TIER.minM3 - CURRENT.totalM3 : null;
+
+// ── Umbrales de gráfica (litros, proporcionales al tier actual) ───────────────
 export const THRESHOLD: Record<TabOption, number> = {
-    Diario:  450,
-    Semanal: 2700,
-    Mensual: 9500,
+    Diario:  CURRENT_TIER.maxM3 === Infinity
+        ? Math.round((TIERS[2].maxM3 * 1000) / 30)  // T4: referencia en T3
+        : Math.round((CURRENT_TIER.maxM3 * 1000) / 30),
+    Semanal: CURRENT_TIER.maxM3 === Infinity
+        ? Math.round((TIERS[2].maxM3 * 1000) / 4)
+        : Math.round((CURRENT_TIER.maxM3 * 1000) / 4),
+    Mensual: CURRENT_TIER.maxM3 === Infinity
+        ? TIERS[2].maxM3 * 1000
+        : CURRENT_TIER.maxM3 * 1000,
 };
 
-// ── Datos para las gráficas por tab ──────────────────────────────────────────
 export const CHART_DATA: Record<TabOption, ChartEntry[]> = {
     Diario:  CURRENT.days.slice(-7),
     Semanal: CURRENT.weeks,
     Mensual: MONTHS.map((m) => ({ label: m.label, value: m.total })),
 };
 
-// ── Conteo de períodos sobre umbral por tab ───────────────────────────────────
 export const OVER_COUNT: Record<TabOption, number> = {
     Diario:  CHART_DATA.Diario.filter((d)  => d.value > THRESHOLD.Diario).length,
     Semanal: CHART_DATA.Semanal.filter((d) => d.value > THRESHOLD.Semanal).length,
     Mensual: CHART_DATA.Mensual.filter((d) => d.value > THRESHOLD.Mensual).length,
 };
 
-// ── Stats para ConsumoCardMonth ───────────────────────────────────────────────
-const T2_LIMIT = 15_000;
-
+// ── Stats ConsumoCardMonth ────────────────────────────────────────────────────
 export const CURRENT_MONTH_STATS = {
     monthName:        CURRENT.label,
     liters:           CURRENT.total,
+    m3:               CURRENT.totalM3,
     changePercent:    Math.round(((CURRENT.total - PREV.total) / PREV.total) * 100),
-    proximityPercent: Math.round((CURRENT.total / T2_LIMIT) * 100),
-    litersRemaining:  T2_LIMIT - CURRENT.total,
+    proximityPercent: CURRENT_TIER.maxM3 === Infinity
+        ? 100
+        : Math.round((CURRENT.totalM3 / CURRENT_TIER.maxM3) * 100),
+    litersRemaining:  CURRENT_TIER.maxM3 === Infinity
+        ? null
+        : Math.round((CURRENT_TIER.maxM3 - CURRENT.totalM3) * 1000),
+    tierId:           CURRENT_TIER.id,
+    tierLabel:        CURRENT_TIER.label,
 };
 
-// ── BillForecast: datos de factura en pesos ───────────────────────────────────
+// ── MiHogarCard ───────────────────────────────────────────────────────────────
+function buildTarifaRows(m3: number, currentTierId: string) {
+    const rows = [];
+    let remaining = m3;
+    for (const tier of TIERS) {
+        if (remaining <= 0) break;
+        const capacity = tier.maxM3 === Infinity ? remaining : tier.maxM3 - tier.minM3 + 1;
+        const consumed = parseFloat(Math.min(remaining, capacity).toFixed(3));
+        const amount   = Math.round(consumed * tier.pricePerM3 * 100) / 100;
+        rows.push({
+            id:           tier.id,
+            label:        tier.label,
+            detail:       `${consumed.toFixed(2)} m³ × $${tier.pricePerM3}/m³`,
+            amount,
+            isCurrent:    tier.id === currentTierId,
+            expandedText: tier.id === currentTierId
+                ? `Tu hogar está en este tramo. ${tier.desc}.`
+                : undefined,
+            expandedRange: `Rango: ${tier.minM3} – ${tier.maxM3 === Infinity ? '∞' : tier.maxM3} m³`,
+        });
+        remaining -= consumed;
+    }
+    return rows;
+}
+
+export const MIHOGAR_DATA = {
+    tipoToma:    `Doméstica ${CURRENT_TIER.id}`,
+    tarifa:      CURRENT_TIER.id,
+    tarifas:     buildTarifaRows(CURRENT.totalM3, CURRENT_TIER.id),
+    otrosCargos: [
+        { label: 'Drenaje',          amount: 38.00 },
+        { label: 'Saneamiento',      amount: 52.00 },
+        { label: 'Servicio medidor', amount: 20.00 },
+    ],
+};
+
+// ── BillForecast ──────────────────────────────────────────────────────────────
+// CURRENT_BILL_RAW se deriva automáticamente desde RAW (Mar).
+// Cada entrada es el costo acumulado en pesos hasta ese día.
+// Los días sin datos (futuros) quedan como null.
 export const BILL_DAYS_IN_MONTH = 28;
-export const BILL_LIMIT_T2      = 8_800;
 
-export const HISTORICAL_BILL_MONTHS: number[][] = [
-    [180, 370, 560, 740, 920, 1110, 1300, 1490, 1680, 1870,
-        2060, 2250, 2440, 2620, 2800, 2990, 3180, 3370, 3560, 3740,
-        3920, 4110, 4300, 4490, 4670, 4850, 5030, 5200],
-    [200, 400, 600, 800, 1000, 1190, 1380, 1570, 1760, 1950,
-        2140, 2330, 2520, 2710, 2890, 3070, 3260, 3450, 3640, 3830,
-        4010, 4200, 4380, 4570, 4750, 4930, 5110, 5300],
-    [160, 330, 500, 670, 840, 1010, 1190, 1370, 1550, 1730,
-        1910, 2090, 2270, 2450, 2620, 2800, 2980, 3160, 3340, 3510,
-        3690, 3870, 4050, 4220, 4400, 4570, 4750, 4900],
-];
+export const CURRENT_BILL_RAW: (number | null)[] = Array.from(
+    { length: BILL_DAYS_IN_MONTH },
+    (_, i) => {
+        if (i >= CURRENT.rawDays.length) return null;          // día futuro
+        const litersAccum = CURRENT.rawDays
+            .slice(0, i + 1)
+            .reduce((a, b) => a + b, 0);
+        return Math.round(calcCostMXN(litersAccum / 1000));   // litros → m³ → pesos
+    }
+);
 
-export const CURRENT_BILL_RAW: (number | null)[] = [
-    190,  390,  610,  820,  1040, 1260, 1480,
-    1720, 1960, 2200, 2450, 2700, 2960, 3220, 3500,
-    null, null, null, null, null, null, null,
-    null, null, null, null, null, null,
-];
+// Límite de referencia: costo del tope del tier actual
+export const BILL_LIMIT_T2 = CURRENT_TIER.maxM3 === Infinity
+    ? Math.round(calcCostMXN(TIERS[2].maxM3))   // T4: referencia en tope de T3
+    : Math.round(calcCostMXN(CURRENT_TIER.maxM3));
 
-// ── Cálculos estáticos del pronóstico ────────────────────────────────────────
-// Calculados aquí (módulo, no componente) → mismo valor en servidor y cliente
-// → sin hydration mismatch.
+// Deriva el historial de pesos acumulados desde los meses anteriores en RAW.
+// Se normalizan a BILL_DAYS_IN_MONTH días: si el mes tiene más días se trunca,
+// si tiene menos se escala proporcionalmente (interpolación lineal).
+function buildHistoricalBillMonth(rawDays: number[]): number[] {
+    return Array.from({ length: BILL_DAYS_IN_MONTH }, (_, i) => {
+        // Mapear el día i (0-based, sobre 28) al índice proporcional del mes real
+        const srcIndex = Math.min(
+            Math.round((i / (BILL_DAYS_IN_MONTH - 1)) * (rawDays.length - 1)),
+            rawDays.length - 1,
+        );
+        const litersAccum = rawDays.slice(0, srcIndex + 1).reduce((a, b) => a + b, 0);
+        return Math.round(calcCostMXN(litersAccum / 1000));
+    });
+}
+
+// Todos los meses excepto el actual (último) se usan como historial
+export const HISTORICAL_BILL_MONTHS: number[][] = MONTHS
+    .slice(0, -1)
+    .map(m => buildHistoricalBillMonth(m.rawDays));
 
 export const BILL_PROJECTION: number[] = Array.from({ length: BILL_DAYS_IN_MONTH }, (_, i) => {
     const vals = HISTORICAL_BILL_MONTHS.map(m => m[i]);
@@ -149,3 +254,26 @@ export const BILL_SAVING        = BILL_FORECAST_END < BILL_PROJECTED_END
 export const BILL_PERFORMANCE: 'good' | 'bad' | 'neutral' =
     _lastReal === 0                              ? 'neutral' :
         _lastReal <= BILL_PROJECTION[_lastRealIndex] ? 'good'    : 'bad';
+
+// ── Consumo por zona ──────────────────────────────────────────────────────────
+// Edita pct para cambiar la distribución. Deben sumar 100.
+export interface ZonaConsumo {
+    id:    string;
+    label: string;
+    pct:   number;   // porcentaje del total mensual
+    color: string;   // color de la barra
+}
+
+export const ZONAS_PCT: ZonaConsumo[] = [
+    { id: 'banos',    label: 'Baños',    pct: 42, color: '#2dd4bf' },
+    { id: 'cocina',   label: 'Cocina',   pct: 25, color: '#38bdf8' },
+    { id: 'lavadora', label: 'Lavadora', pct: 18, color: '#818cf8' },
+    { id: 'jardin',   label: 'Jardín',   pct: 10, color: '#4ade80' },
+    { id: 'otros',    label: 'Otros',    pct:  5, color: '#94a3b8' },
+];
+
+// Litros reales por zona derivados del total mensual actual
+export const ZONAS_DATA = ZONAS_PCT.map(z => ({
+    ...z,
+    liters: Math.round(CURRENT.total * z.pct / 100),
+}));

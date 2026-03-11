@@ -11,6 +11,7 @@ import {
     OVER_COUNT,
     THRESHOLD,
 } from "@/data/Consumptiondata";
+import ConsumoZonas from "@/components/consumo/ConsumoZonas";
 
 export default function Consume() {
     const [activeTab, setActiveTab] = useState<TabOption>('Diario');
@@ -21,9 +22,12 @@ export default function Consume() {
                 <ConsumoCardMonth
                     monthName={CURRENT_MONTH_STATS.monthName}
                     liters={CURRENT_MONTH_STATS.liters}
+                    m3={CURRENT_MONTH_STATS.m3}
                     changePercent={CURRENT_MONTH_STATS.changePercent}
                     proximityPercent={CURRENT_MONTH_STATS.proximityPercent}
                     litersRemaining={CURRENT_MONTH_STATS.litersRemaining}
+                    tierId={CURRENT_MONTH_STATS.tierId}
+                    tierLabel={CURRENT_MONTH_STATS.tierLabel}
                 />
             </div>
 
@@ -37,8 +41,13 @@ export default function Consume() {
                 />
             </div>
 
+
             <div>
                 <MiHogarCard />
+            </div>
+
+            <div className="pt-10">
+                <ConsumoZonas/>
             </div>
         </div>
     );

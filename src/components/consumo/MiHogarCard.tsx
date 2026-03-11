@@ -2,48 +2,20 @@
 
 import { useState } from 'react';
 import { Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { MIHOGAR_DATA } from "@/data/Consumptiondata";
 
-interface TarifaRow {
-    id: string;
-    label: string;
-    detail: string;
-    amount: number;
-    isCurrent?: boolean;
-    expandedText?: string;
-    expandedRange?: string;
-}
+export default function MiHogarCard() {
+    const { tipoToma, tarifas, otrosCargos } = MIHOGAR_DATA;
 
-interface OtroCargo {
-    label: string;
-    amount: number;
-}
-
-interface DesgloseTarifarioProps {
-    tipoToma?: string;
-    tarifa?: string;
-    tarifas?: TarifaRow[];
-    otrosCargos?: OtroCargo[];
-}
-
-export default function MiHogarCard({
-                                              tipoToma = "Domestica T2",
-                                              tarifa = "T2",
-                                              tarifas = [
-                                                  { id: 't1', label: 'T1 - Base',        detail: '6.0 m³ x $4.80/m3',  amount: 28.80 },
-                                                  { id: 't2', label: 'T2 - Excedente 1', detail: '9.0 m³ x $12.50/m3', amount: 112.50, isCurrent: true,
-                                                      expandedText: 'Consumo intermedio domestico. Tu hogar esta aqui.', expandedRange: 'Rango: 6 - 15 m³' },
-                                                  { id: 't3', label: 'T3 - Excedente 2', detail: '8.4 m³ x $28.40/m3', amount: 238.56 },
-                                              ],
-                                              otrosCargos = [
-                                                  { label: 'Drenaje',           amount: 380 },
-                                                  { label: 'Saneamiento',       amount: 520 },
-                                                  { label: 'Servicio medidor',  amount: 200 },
-                                              ],
-                                          }: DesgloseTarifarioProps) {
-    const [expanded, setExpanded] = useState<string | null>('t2');
+    const defaultOpen = tarifas.find(t => t.isCurrent)?.id ?? tarifas[0]?.id ?? null;
+    const [expanded, setExpanded] = useState<string | null>(defaultOpen);
 
     const subtotalOtros = otrosCargos.reduce((s, c) => s + c.amount, 0);
-    const total = tarifas.reduce((s, t) => s + t.amount, 0) + subtotalOtros;
+    const subtotalTarifas = tarifas.reduce((s, t) => s + t.amount, 0);
+    const total = subtotalTarifas + subtotalOtros;
+
+    // Barra de proporción visual entre tramos
+    const maxAmount = Math.max(...tarifas.map(t => t.amount));
 
     return (
         <div className="bg-white rounded-3xl p-5 shadow-sm w-full">
@@ -58,48 +30,69 @@ export default function MiHogarCard({
                 </span>
             </div>
             <p className="text-xs text-slate-400 mb-4">
-                Consumo marginal: cada m3 extra en T3 cuesta 2.3x mas que T2
+                Cada tramo tiene su propio precio — pagas más por m³ conforme consumes más.
             </p>
 
             {/* Tarifa rows */}
             <div className="flex flex-col gap-2 mb-3">
                 {tarifas.map((t) => {
                     const isOpen = expanded === t.id;
+                    const barWidth = Math.round((t.amount / maxAmount) * 100);
+
                     return (
                         <div
                             key={t.id}
                             className={`rounded-2xl p-4 cursor-pointer transition-all
-                                ${t.isCurrent ? 'bg-teal-50 border border-teal-200' : 'bg-slate-50'}`}
+                                ${t.isCurrent
+                                ? 'bg-teal-50 border border-teal-200'
+                                : 'bg-slate-50 border border-transparent'}`}
                             onClick={() => setExpanded(isOpen ? null : t.id)}
                         >
                             <div className="flex justify-between items-center">
-                                <div>
-                                    <div className="flex items-center gap-2">
+                                <div className="flex-1 min-w-0 mr-4">
+                                    <div className="flex items-center gap-2 mb-0.5">
                                         <span className="text-sm font-bold text-slate-800">{t.label}</span>
                                         {t.isCurrent && (
                                             <span className="text-[10px] font-semibold text-teal-600 bg-teal-100 px-2 py-0.5 rounded-full">
-                                                Tu tarifa
+                                                Tu tarifa actual
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-0.5">{t.detail}</p>
+                                    <p className="text-xs text-slate-400">{t.detail}</p>
+                                    {/* Barra proporcional al costo del tramo */}
+                                    <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${t.isCurrent ? 'bg-teal-400' : 'bg-slate-300'}`}
+                                            style={{ width: `${barWidth}%` }}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-bold text-slate-800 font-mono">
-                                        ${t.amount.toFixed(2)}
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <span className={`text-sm font-bold font-mono ${t.isCurrent ? 'text-teal-700' : 'text-slate-800'}`}>
+                                        ${t.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                                     </span>
                                     {isOpen
-                                        ? <ChevronUp size={15} className="text-slate-400" />
+                                        ? <ChevronUp   size={15} className="text-slate-400" />
                                         : <ChevronDown size={15} className="text-slate-400" />
                                     }
                                 </div>
                             </div>
-                            {isOpen && t.expandedText && (
-                                <div className="mt-3 pt-3 border-t border-teal-100">
-                                    <p className="text-xs text-slate-600">{t.expandedText}</p>
-                                    {t.expandedRange && (
-                                        <p className="text-xs text-slate-400 mt-0.5">{t.expandedRange}</p>
+
+                            {isOpen && (
+                                <div className="mt-3 pt-3 border-t border-slate-200 space-y-1">
+                                    {t.expandedText && (
+                                        <p className="text-xs text-slate-600">{t.expandedText}</p>
                                     )}
+                                    {t.expandedRange && (
+                                        <p className="text-xs text-slate-400">{t.expandedRange}</p>
+                                    )}
+                                    <p className="text-xs text-slate-400">
+                                        Este tramo representa{' '}
+                                        <span className="font-semibold text-slate-600">
+                                            {Math.round((t.amount / subtotalTarifas) * 100)}%
+                                        </span>{' '}
+                                        del costo por consumo
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -107,19 +100,31 @@ export default function MiHogarCard({
                 })}
             </div>
 
+            {/* Subtotal tarifas */}
+            <div className="flex justify-between items-center px-1 mb-3">
+                <span className="text-xs text-slate-400">Subtotal consumo</span>
+                <span className="text-xs font-bold text-slate-600 font-mono">
+                    ${subtotalTarifas.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </span>
+            </div>
+
             {/* Otros cargos */}
             <div className="bg-slate-50 rounded-2xl p-4 mb-4">
-                <p className="text-sm font-bold text-slate-800 mb-3">Otros cargos</p>
+                <p className="text-sm font-bold text-slate-800 mb-3">Otros cargos fijos</p>
                 <div className="flex flex-col gap-2">
                     {otrosCargos.map((c) => (
                         <div key={c.label} className="flex justify-between">
                             <span className="text-sm text-slate-500">{c.label}</span>
-                            <span className="text-sm text-slate-500 font-mono">${c.amount.toFixed(2)}</span>
+                            <span className="text-sm text-slate-500 font-mono">
+                                ${c.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </span>
                         </div>
                     ))}
                     <div className="flex justify-between pt-2 border-t border-slate-200 mt-1">
                         <span className="text-sm text-slate-500">Subtotal otros</span>
-                        <span className="text-sm font-bold text-slate-800 font-mono">${subtotalOtros.toFixed(2)}</span>
+                        <span className="text-sm font-bold text-slate-800 font-mono">
+                            ${subtotalOtros.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -127,7 +132,9 @@ export default function MiHogarCard({
             {/* Total */}
             <div className="flex justify-between items-center pt-3 border-t border-slate-100">
                 <span className="text-base font-bold text-slate-900">Total proyectado</span>
-                <span className="text-xl font-black text-teal-500 font-mono">${total.toLocaleString('en-MX', { minimumFractionDigits: 2 })}</span>
+                <span className="text-xl font-black text-teal-500 font-mono">
+                    ${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </span>
             </div>
         </div>
     );
