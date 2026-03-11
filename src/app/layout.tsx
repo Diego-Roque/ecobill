@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/shared/Header";
 import BottomNav from "@/components/shared/BottomNav";
+import { USER_GAMIFICATION} from "@/data/Userdata";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -32,7 +33,7 @@ export default function RootLayout({
         <main className=" mx-auto min-h-screen pb-24 p-4 space-y-4 bg-white">
 
             <Header
-                streak={12} energy={2950} />
+                streak={USER_GAMIFICATION.dayStreak} energy={USER_GAMIFICATION.xp} />
 
             {children}
 

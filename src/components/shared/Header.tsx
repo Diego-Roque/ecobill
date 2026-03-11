@@ -1,4 +1,4 @@
-import { Bell, Droplets, Flame, Zap } from "lucide-react";
+import {Bell, Droplets, Flame, Star} from "lucide-react";
 
 interface HeaderTopProps {
     streak: number;
@@ -33,7 +33,7 @@ export default function Header({ streak, energy }: HeaderTopProps) {
 
                     {/* energy */}
                     <div className="flex items-center gap-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-medium">
-                        <Zap size={16} />
+                        <Star size={16} />
                         {energy}
                     </div>
 
